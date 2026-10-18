@@ -1,4 +1,5 @@
 import argparse
+import os
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -724,9 +725,11 @@ if __name__ == "__main__":
     llms = build_llms()
     print(f"🧠  Models: {describe_llms(llms)}\n")
 
+    # 3 samples instead of the template's 5: the 2026-10-18 benchmark ran with 3, the Spring 2026
+    # survey found no gain from more samples, and it cuts the per-question cost by ~40%.
     template_bot = FallTemplateBot2026(
         research_reports_per_question=1,
-        predictions_per_research_report=5,
+        predictions_per_research_report=int(os.getenv("PREDICTIONS_PER_QUESTION", "3")),
         use_research_summary_to_forecast=False,
         publish_reports_to_metaculus=publish_to_metaculus,
         folder_to_save_reports_to="reports" if not publish_to_metaculus else None,
@@ -754,11 +757,16 @@ if __name__ == "__main__":
                 client.CURRENT_AI_COMPETITION_ID, return_exceptions=True
             )
         )
-        minibench_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                client.CURRENT_MINIBENCH_ID, return_exceptions=True
+        # MiniBench roughly doubles question volume for a $1k pool; FORECAST_MINIBENCH=0 skips it.
+        if os.getenv("FORECAST_MINIBENCH", "1") != "0":
+            minibench_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    client.CURRENT_MINIBENCH_ID, return_exceptions=True
+                )
             )
-        )
+        else:
+            print("⏭️   MiniBench skipped (FORECAST_MINIBENCH=0)\n")
+            minibench_reports = []
         forecast_reports = seasonal_tournament_reports + minibench_reports
     elif run_mode == "metaculus_cup":
         # The Metaculus Cup may be uninitialized near the start of a season
