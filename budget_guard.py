@@ -16,7 +16,9 @@ import requests
 
 from bot_helpers import _is_real_env
 
-CAP = float(os.getenv("OPENROUTER_SPEND_CAP_USD", "25"))
+def cap_usd() -> float:
+    # read at call time so a .env loaded after import (main.py, smoke_test.py) is honoured
+    return float(os.getenv("OPENROUTER_SPEND_CAP_USD", "25"))
 
 
 def openrouter_usage() -> dict | None:
@@ -42,10 +44,11 @@ def check_budget(strict: bool = True) -> dict | None:
         return None
     if u is None:
         return None
-    print(f"💵  OpenRouter spent ${u['usage']:.2f} / cap ${CAP:.2f}"
+    cap = cap_usd()
+    print(f"💵  OpenRouter spent ${u['usage']:.2f} / cap ${cap:.2f}"
           + (f" (key limit remaining ${u['limit_remaining']:.2f})" if u.get("limit_remaining") is not None else ""))
-    if u["usage"] >= CAP:
-        print(f"⛔  Spend cap reached (${u['usage']:.2f} ≥ ${CAP:.2f}). Raise OPENROUTER_SPEND_CAP_USD to continue.")
+    if u["usage"] >= cap:
+        print(f"⛔  Spend cap reached (${u['usage']:.2f} ≥ ${cap:.2f}). Raise OPENROUTER_SPEND_CAP_USD to continue.")
         if strict:
             sys.exit(2)
     return u
