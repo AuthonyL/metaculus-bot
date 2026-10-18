@@ -52,10 +52,14 @@ OpenAI/Anthropic/Google 对本账号 403，故候选只在 Grok/Kimi/DeepSeek �
 想省钱把 `FORECASTER_MODEL` 改成 sonnet（`.env` 里有注释）。模型全部不传 temperature（Claude 5.5 拒绝非默认采样参数）。
 
 ## 4. 挂到 GitHub Actions（免费、自动、不用本机）
-1. 建一个**私有**仓库推上去（`git remote` 里 `upstream` 指向官方模板）。
-2. `Settings → Secrets and variables → Actions` 添加 `METACULUS_TOKEN` 和 `OPENROUTER_API_KEY`（或 `ANTHROPIC_API_KEY`）。
-3. `Actions` 页启用 workflows → 先跑 **Test Bot**（bot-testing-area）→ 确认发帖成功 → **Forecast on new AI tournament questions** 会每 20 分钟自动跑秋季赛 + MiniBench。
-4. 暂停：该 workflow 右上角 `Disable workflow`。
+仓库：**https://github.com/AuthonyL/metaculus-bot**（私有；`upstream` 指向官方模板，`git pull upstream main` 可同步更新）。
+1. `Settings → Secrets and variables → Actions → Secrets` 添加：
+   - `METACULUS_TOKEN`（bot 账号的 token）
+   - `OPENROUTER_API_KEY`
+   - 可选 `ASKNEWS_API_KEY`
+2. 同页 `Variables` 标签添加 `OPENROUTER_SPEND_CAP_USD`（例如 `45`）；不填则工作流默认 45。
+3. `Actions` 页启用 workflows → 先手动跑 **Test Bot**（bot-testing-area）→ 到 bot 账号确认发帖 → **Forecast on new AI tournament questions** 会每 20 分钟自动跑秋季赛 + MiniBench（Metaculus Cup 的定时已关，只能手动触发）。
+4. 暂停：该 workflow 右上角 `Disable workflow`。额度用完时 `budget_guard` 会让运行直接退出，不会报错刷屏。
 
 ## 5. 规则红线
 - 全自动，人不能改 bot 的预测，也不能用自己的判断去调它。
