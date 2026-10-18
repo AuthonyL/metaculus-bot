@@ -16,6 +16,9 @@ from bot_helpers import (
 
 silence_noisy_dependencies()
 
+from bot_config import CLAUDE_WEB_SEARCH, build_llms, describe_llms
+from budget_guard import check_budget
+from claude_research import research_with_web_search
 from forecasting_tools import (
     AskNewsSearcher,
     BinaryQuestion,
@@ -137,6 +140,8 @@ class FallTemplateBot2026(ForecastBot):
 
             if isinstance(researcher, GeneralLlm):
                 research = await researcher.invoke(prompt)
+            elif researcher == CLAUDE_WEB_SEARCH:
+                research = await research_with_web_search(prompt)
             elif (
                 researcher == "asknews/news-summaries"
                 or researcher == "asknews/deep-research/low-depth"
@@ -697,35 +702,37 @@ if __name__ == "__main__":
         default="tournament",
         help="What to forecast on (default: tournament)",
     )
+    parser.add_argument(
+        "--no-publish",
+        action="store_true",
+        help="Dry run: forecast and save reports locally, post nothing to Metaculus",
+    )
+    parser.add_argument(
+        "--max-questions",
+        type=int,
+        default=0,
+        help="Only forecast the first N open questions (0 = all); handy for smoke tests",
+    )
     args = parser.parse_args()
     run_mode: Literal["tournament", "metaculus_cup", "test_questions"] = args.mode
 
     check_environment(strict=True)
-    publish_to_metaculus = True
+    check_budget(strict=True)  # refuse to run once the OpenRouter key has spent OPENROUTER_SPEND_CAP_USD
+    publish_to_metaculus = not args.no_publish
     print_startup_banner(run_mode, will_publish=publish_to_metaculus)
 
-    # Configure the bot. The `llms=` block below is commented out to use
-    # whichever default models forecasting-tools picks based on your env vars;
-    # uncomment and edit to pin specific models.
+    llms = build_llms()
+    print(f"🧠  Models: {describe_llms(llms)}\n")
+
     template_bot = FallTemplateBot2026(
         research_reports_per_question=1,
         predictions_per_research_report=5,
         use_research_summary_to_forecast=False,
         publish_reports_to_metaculus=publish_to_metaculus,
-        folder_to_save_reports_to=None,
+        folder_to_save_reports_to="reports" if not publish_to_metaculus else None,
         skip_previously_forecasted_questions=True,
         extra_metadata_in_explanation=True,
-        # llms={
-        #     "default": GeneralLlm(
-        #         model="openrouter/openai/gpt-4o",
-        #         temperature=0.3,
-        #         timeout=40,
-        #         allowed_tries=2,
-        #     ),
-        #     "summarizer": "openai/gpt-4o-mini",
-        #     "researcher": "asknews/news-summaries",
-        #     "parser": "openai/gpt-4o-mini",
-        # },
+        llms=llms,
     )
 
     # Per-mode tournament URL shown in the summary banner footer. These
@@ -769,11 +776,19 @@ if __name__ == "__main__":
         # the recommended target for smoke-testing your bot.
         # https://www.metaculus.com/tournament/bot-testing-area/
         template_bot.skip_previously_forecasted_questions = False
-        forecast_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                "bot-testing-area", return_exceptions=True
+        if args.max_questions:
+            questions = client.get_all_open_questions_from_tournament("bot-testing-area")
+            questions = questions[: args.max_questions]
+            print(f"🔬  Limiting to {len(questions)} question(s): {[q.page_url for q in questions]}\n")
+            forecast_reports = asyncio.run(
+                template_bot.forecast_questions(questions, return_exceptions=True)
             )
-        )
+        else:
+            forecast_reports = asyncio.run(
+                template_bot.forecast_on_tournament(
+                    "bot-testing-area", return_exceptions=True
+                )
+            )
 
     template_bot.log_report_summary(forecast_reports)
     print_run_summary_banner(

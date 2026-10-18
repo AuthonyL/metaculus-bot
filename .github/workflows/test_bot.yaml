@@ -42,6 +42,7 @@ jobs:
         # Store under Settings --> Secrets and variables --> Actions
         env:
           METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }} # replace this with the name of the variable under which you stored your own Metaculus token
+          OPENROUTER_SPEND_CAP_USD: ${{ vars.OPENROUTER_SPEND_CAP_USD || '45' }} # budget_guard.py hard stop (Settings → Variables)
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
