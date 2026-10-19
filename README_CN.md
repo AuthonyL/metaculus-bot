@@ -52,7 +52,7 @@ OpenAI/Anthropic/Google 对本账号 403，故候选只在 Grok/Kimi/DeepSeek �
 想省钱把 `FORECASTER_MODEL` 改成 sonnet（`.env` 里有注释）。模型全部不传 temperature（Claude 5.5 拒绝非默认采样参数）。
 
 ## 4. 挂到 GitHub Actions（免费、自动、不用本机）
-仓库：**https://github.com/AuthonyL/metaculus-bot**（私有；`upstream` 指向官方模板，`git pull upstream main` 可同步更新）。
+仓库：**https://github.com/AuthonyL/metaculus-bot**（2026-10-19 起 public，Actions 分钟数不限；`upstream` 指向官方模板，`git pull upstream main` 可同步更新）。
 1. `Settings → Secrets and variables → Actions → Secrets` 添加：
    - `METACULUS_TOKEN`（bot 账号的 token）
    - `OPENROUTER_API_KEY`
@@ -88,10 +88,7 @@ OpenAI/Anthropic/Google 对本账号 403，故候选只在 Grok/Kimi/DeepSeek �
 
 **Actions 分钟数**：私有仓库每月只有 2,000 分钟。实测空跑约 50 秒（按 1 分钟计费）、带 1 题约 10 分钟；
 每天 3–6 道正赛 + ~4 道 MiniBench，再加每 20 分钟一次空跑，约需 **4,000+ 分钟/月**，超额后 Actions 直接停跑。
-仓库改成 public 后分钟数不限（仓库里没有任何密钥，只有 `.env.template`，密钥都在 GitHub Secrets）：
-```bash
-gh repo edit AuthonyL/metaculus-bot --visibility public --accept-visibility-change-consequences
-```
+所以 2026-10-19 已改成 public，分钟数不限（改之前扫过全部 97 个提交：`.env` 从未提交，无任何 key 模式；密钥都在 GitHub Secrets，预测结果在被忽略的 `reports/`）。
 注意 public 仓库的 `schedule` 会在 60 天无提交后被自动禁用，但 cron-job.org 走的 `workflow_dispatch` 不受影响。
 
 ## 5. 规则红线
