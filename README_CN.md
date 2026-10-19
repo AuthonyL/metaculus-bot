@@ -58,8 +58,41 @@ OpenAI/Anthropic/Google 对本账号 403，故候选只在 Grok/Kimi/DeepSeek �
    - `OPENROUTER_API_KEY`
    - 可选 `ASKNEWS_API_KEY`
 2. 同页 `Variables` 标签添加 `OPENROUTER_SPEND_CAP_USD`（例如 `45`）；不填则工作流默认 45。
-3. `Actions` 页启用 workflows → 先手动跑 **Test Bot**（bot-testing-area）→ 到 bot 账号确认发帖 → **Forecast on new AI tournament questions** 会每 20 分钟自动跑秋季赛 + MiniBench（Metaculus Cup 的定时已关，只能手动触发）。
+3. `Actions` 页启用 workflows → 先手动跑 **Test Bot**（bot-testing-area）→ 到 bot 账号确认发帖 → **Forecast on new AI tournament questions** 定时跑秋季赛 + MiniBench（写的是每 20 分钟，实测 GitHub 约 2 小时才跑一次，见 4b；Metaculus Cup 的定时已关，只能手动触发）。
 4. 暂停：该 workflow 右上角 `Disable workflow`。额度用完时 `budget_guard` 会让运行直接退出，不会报错刷屏。
+
+看运行记录：https://github.com/AuthonyL/metaculus-bot/actions → 点某次运行 → `forecast_job` → 展开 `Run bot`，末尾有 `Bot submitted N forecast(s)` 和当次花费。
+看预测结果：bot 主页 https://www.metaculus.com/accounts/profile/310753/（用户名 `Authony-Bot`，id 310753）；赛事页 https://www.metaculus.com/tournament/fall-futureeval-2026/ 、 https://www.metaculus.com/tournament/minibench/ 、 https://www.metaculus.com/tournament/bot-testing-area/ 。
+
+## 4b. 外部触发器（补 GitHub 定时的延迟）
+**为什么需要**：GitHub `schedule` 实测约每 2 小时跑一次（10-18 17:26 / 19:31 / 21:53、10-19 00:07），而题目只开放 **3 小时**：
+正赛 53 题里 51 题是 3 小时窗口，开题时刻分布在 00/03/06/09/12/14/15/18/21 UTC 各整点；MiniBench 首批 4 题 10-19 00:19–00:46 UTC 开。
+一次延迟就会整题错过，所以用 cron-job.org 每 20 分钟调一次 GitHub 的 `workflow_dispatch` 接口兜底（GitHub 自己的定时保留作备份）。
+
+**你要做的（约 10 分钟）**
+1. 建一个只能触发这个仓库 Actions 的 token：https://github.com/settings/personal-access-tokens/new
+   - Token name：`metaculus-bot-trigger`；Expiration：Custom → `2027-01-31`（赛季 12 月底结束）
+   - Repository access：Only select repositories → `AuthonyL/metaculus-bot`
+   - Permissions → Repository permissions → **Actions: Read and write**（Metadata 会自动变成 Read）
+   - Generate token → 复制（只显示一次），不要发给我，只填到下一步。
+2. 注册 https://cron-job.org（免费）→ Cronjobs → **CREATE CRONJOB**：
+   - Title：`metaculus-bot trigger`
+   - URL：`https://api.github.com/repos/AuthonyL/metaculus-bot/actions/workflows/run_bot_on_tournament.yaml/dispatches`
+   - Execution schedule：Every 20 minutes（或 Custom → Minutes 勾 0、20、40）
+   - 切到 **ADVANCED** 标签：
+     - Request method：**POST**
+     - Headers 加 4 行：`Accept` = `application/vnd.github+json`；`Authorization` = `Bearer <第 1 步的 token>`；`X-GitHub-Api-Version` = `2022-11-28`；`Content-Type` = `application/json`
+     - Request body：`{"ref":"main"}`
+   - CREATE → 在该 job 页点 **TEST RUN**，状态码 **204** 即成功（GitHub 对成功的 dispatch 不返回内容）。
+3. 告诉我"填完了"，我用 `gh run list` 核对出现 `workflow_dispatch` 的运行；之后 Actions 页每 20 分钟会多一条 `workflow_dispatch` 运行，空跑约 50 秒。
+
+**Actions 分钟数**：私有仓库每月只有 2,000 分钟。实测空跑约 50 秒（按 1 分钟计费）、带 1 题约 10 分钟；
+每天 3–6 道正赛 + ~4 道 MiniBench，再加每 20 分钟一次空跑，约需 **4,000+ 分钟/月**，超额后 Actions 直接停跑。
+仓库改成 public 后分钟数不限（仓库里没有任何密钥，只有 `.env.template`，密钥都在 GitHub Secrets）：
+```bash
+gh repo edit AuthonyL/metaculus-bot --visibility public --accept-visibility-change-consequences
+```
+注意 public 仓库的 `schedule` 会在 60 天无提交后被自动禁用，但 cron-job.org 走的 `workflow_dispatch` 不受影响。
 
 ## 5. 规则红线
 - 全自动，人不能改 bot 的预测，也不能用自己的判断去调它。

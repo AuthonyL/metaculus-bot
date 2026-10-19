@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "7,27,47 * * * *" # every 20 min, offset off the hour. Make sure to skip already-forecasted questions!
+    # GitHub only honours this roughly every ~2 h in practice while questions are open for 3 h, so an
+    # external cron (cron-job.org -> workflow_dispatch every 20 min) is the primary trigger; see README_CN.md 4b.
 
 # Add concurrency group to prevent parallel runs
 concurrency:
