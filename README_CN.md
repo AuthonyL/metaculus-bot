@@ -58,6 +58,7 @@ OpenAI/Anthropic/Google 对本账号 403，故候选只在 Grok/Kimi/DeepSeek �
    - `OPENROUTER_API_KEY`
    - 可选 `ASKNEWS_API_KEY`
 2. 同页 `Variables` 标签添加 `OPENROUTER_SPEND_CAP_USD`（例如 `45`）；不填则工作流默认 45。
+   同页变量 `FORECAST_MINIBENCH`：`0` 只跑正赛，不填或 `1` 连 MiniBench 一起跑。**2026-10-19 已设为 0**：MiniBench 首日 15 小时放了 24 题、花掉 $14，远超"每期约 60 题"的说法，而奖池只有 $1,000；正赛每天约 4 题、约 $2.5。改回 `1` 下一次运行即生效，不用改代码。
 3. `Actions` 页启用 workflows → 先手动跑 **Test Bot**（bot-testing-area）→ 到 bot 账号确认发帖 → **Forecast on new AI tournament questions** 定时跑秋季赛 + MiniBench（写的是每 20 分钟，实测 GitHub 约 2 小时才跑一次，见 4b；Metaculus Cup 的定时已关，只能手动触发）。
 4. 暂停：该 workflow 右上角 `Disable workflow`。额度用完时 `budget_guard` 会让运行直接退出，不会报错刷屏。
 
