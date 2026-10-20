@@ -69,7 +69,14 @@ def build_llms() -> dict[str, str | GeneralLlm] | None:
         parser = GeneralLlm(model=os.getenv("PARSER_MODEL") or _model("haiku", route), timeout=90, allowed_tries=3)
         summarizer = GeneralLlm(model=os.getenv("SUMMARIZER_MODEL") or _model("haiku", route), timeout=120, allowed_tries=2)
     else:
-        forecaster = GeneralLlm(model=os.getenv("FORECASTER_MODEL") or _OR_FORECASTER, timeout=300, allowed_tries=2, **HIGH_REASONING)
+        # 900 s: Grok 4.7 at high effort regularly needs 5+ min; at 300 s whole runs timed out and
+        # the generations were billed anyway (2026-10-20, question 46069).
+        forecaster = GeneralLlm(
+            model=os.getenv("FORECASTER_MODEL") or _OR_FORECASTER,
+            timeout=int(os.getenv("FORECASTER_TIMEOUT", "900")),
+            allowed_tries=2,
+            **HIGH_REASONING,
+        )
         parser = GeneralLlm(model=os.getenv("PARSER_MODEL") or _OR_CHEAP, timeout=90, allowed_tries=3)
         summarizer = GeneralLlm(model=os.getenv("SUMMARIZER_MODEL") or _OR_CHEAP, timeout=120, allowed_tries=2)
 

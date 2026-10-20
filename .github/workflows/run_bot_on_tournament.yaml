@@ -39,6 +39,15 @@ jobs:
       #     key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
         run: poetry install --no-interaction --no-root
+      # state/attempts.json remembers which questions were already tried (attempt_guard.py), so a
+      # question that keeps failing is not re-researched every 15 minutes. restore-keys picks the
+      # newest cache with that prefix; a fresh key per run is how actions/cache does "update".
+      - name: Restore attempt memory
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: attempts-${{ github.run_id }}
+          restore-keys: attempts-
       - name: Run bot
         run: |
           poetry run python main.py
@@ -56,3 +65,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
           ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+      - name: Save attempt memory
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: attempts-${{ github.run_id }}

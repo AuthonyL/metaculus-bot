@@ -177,3 +177,6 @@ temp/
 
 # local dry-run reports
 reports/
+
+# attempt_guard.py state (persisted on CI via actions/cache)
+state/

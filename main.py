@@ -17,6 +17,7 @@ from bot_helpers import (
 
 silence_noisy_dependencies()
 
+from attempt_guard import filter_by_attempts, max_attempts
 from bot_config import CLAUDE_WEB_SEARCH, build_llms, describe_llms
 from budget_guard import check_budget
 from claude_research import research_with_web_search
@@ -751,17 +752,30 @@ if __name__ == "__main__":
     # exceptions, since return_exceptions=True) which then flows into the
     # summary printers below.
     client = MetaculusClient()
+
+    def _new_questions(tournament_id: int | str) -> list:
+        """Open questions not yet forecast by this bot, minus ones already tried MAX_ATTEMPTS times."""
+        questions = client.get_all_open_questions_from_tournament(tournament_id)
+        questions = [q for q in questions if not getattr(q, "already_forecasted", False)]
+        keep, skipped = filter_by_attempts(questions)
+        if skipped:
+            print(
+                f"⏭️   {len(skipped)} question(s) skipped after {max_attempts()} failed attempt(s): "
+                f"{[q.page_url for q in skipped]}\n"
+            )
+        return keep
+
     if run_mode == "tournament":
         seasonal_tournament_reports = asyncio.run(
-            template_bot.forecast_on_tournament(
-                client.CURRENT_AI_COMPETITION_ID, return_exceptions=True
+            template_bot.forecast_questions(
+                _new_questions(client.CURRENT_AI_COMPETITION_ID), return_exceptions=True
             )
         )
         # MiniBench roughly doubles question volume for a $1k pool; FORECAST_MINIBENCH=0 skips it.
         if os.getenv("FORECAST_MINIBENCH", "1") != "0":
             minibench_reports = asyncio.run(
-                template_bot.forecast_on_tournament(
-                    client.CURRENT_MINIBENCH_ID, return_exceptions=True
+                template_bot.forecast_questions(
+                    _new_questions(client.CURRENT_MINIBENCH_ID), return_exceptions=True
                 )
             )
         else:
